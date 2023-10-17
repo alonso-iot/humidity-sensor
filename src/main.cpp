@@ -1,33 +1,47 @@
 #include <Arduino.h>
-#include <EEPROM.h>
-#include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
-#include "wifi-config.h"
+#include <LittleFS.h>
+#include "wifi-setup/wifi-setup.h"
 
-#define WIFI_CONFIG_ADDRESS 0
-
-ESP8266WebServer server(80);
+static String getDeviceId() {
+  char deviceId[8];
+  const auto mac = WiFi.macAddress().c_str();
+  auto idx = 0;
+  for (auto i : { 16, 15, 13, 12, 10, 9, 7}) {
+    deviceId[idx++] = tolower(mac[i]);
+  }
+  deviceId[idx] = 0;
+  return deviceId;
+}
 
 void setup() {
+  String deviceType = "humidity-sensor";
+  String deviceId = getDeviceId();
+
   Serial.begin(115200);
-  Serial.println("\n---------------------------------------\nIoT sensor\n---------------------------------------");
-  EEPROM.begin(getWifiConfigurationSize());
+  Serial.println("\n---------------------------------------");
+  Serial.println("IoT sensor");
+  Serial.printf("Device id: %s\n", deviceId.c_str());
+  Serial.println("---------------------------------------");
 
-  if (MDNS.begin("humidity-sensor")) { Serial.println(">:MDNS responder started"); }
+  Serial.println(">:Initializing LittleFS...");
+  if (!LittleFS.begin()) {
+    Serial.println(">:Cannot initialize LittleFS, restarting...");
+    ESP.reset();
+    return;
+  }
 
-  Serial.println(">:Loading WiFi configuration...");
-  WifiConfiguration wifiConfig = loadWifiConfiguration(WIFI_CONFIG_ADDRESS);
-  
-  if (!wifiConfig.valid) {
-    Serial.println(">:WiFi configuration not found, starting in configuration mode...");
-  }
-  else {
-    Serial.printf(">:WiFi configuration found. SSID=%s\n", wifiConfig.ssid);
-  }
+  String mdnsId = deviceType + "-" + deviceId;
+  if (MDNS.begin(mdnsId)) { Serial.println(">:MDNS responder started"); }
+
+  WifiSetupOpts opts;
+  opts.ssid = deviceType + "-" + deviceId;
+
+  WifiSetup* wifiSetup = new WifiSetup(opts);
+  wifiSetup->start();
 }
 
 void loop() {
-  server.handleClient();
   MDNS.update();
 }

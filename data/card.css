@@ -1,0 +1,18 @@
+.card {
+  width: 600px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px 0 rgba(0,0,0,0.5);
+  transition: 0.3s;
+}
+
+.card .title {
+  border-radius: 8px 8px 0px 0px;
+  background: #5293d9;
+  padding: 3px 12px 3px 12px;
+  font-weight: bold;
+  font-size: 1em;
+}
+
+.card .content {
+  padding: 12px;
+}

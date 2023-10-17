@@ -1,0 +1,32 @@
+.known-ssid-list button {
+  width: 8em;
+  margin-right: .8em;
+}
+
+.known-ssid-list ul {
+  margin-block: 0;
+  padding-inline: 0;
+}
+
+.known-ssid-list li {
+  list-style-type: none;
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.known-ssid-list li img {
+  width: 32px;
+  height: 32px;
+  margin-right: 5px;
+}
+
+.known-ssid-list .title button {
+  margin-left: 1em;
+}
+
+.known-ssid-list .title img {
+  float: right;
+  width: 16px;
+  height: 16px;
+}

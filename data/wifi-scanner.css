@@ -1,0 +1,27 @@
+.wifi-scanner button {
+  margin-right: .8em;
+  width: 8em;
+}
+
+.wifi-scanner ul {
+  margin-block: 0;
+  padding-inline: 0;
+}
+
+.wifi-scanner li {
+  list-style-type: none;
+  display: flex;
+  align-items: center;
+}
+
+.wifi-scanner li img {
+  width: 32px;
+  height: 32px;
+  margin-right: 5px;
+}
+
+.wifi-scanner .title img {
+  width: 16px;
+  height: 16px;
+  float: right;
+}

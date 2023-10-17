@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Wifi setup</title>
+    <script src="./vue.global.prod.js"></script>
+    <script src="./axios.min.js"></script>
+  </head>
+  <body>
+    <div class="container body-content">
+      <div id="app">
+        <button class="reboot" v-on:click="reboot">Reboot system</button>
+        <div><known-ssid-list :known-ssids="knownSsids" :loading-known-ssids="loadingKnownSsids" :wifis="wifis" @add-wifi="addWifi" @remove-wifi="removeWifi" /></div>
+        <br />
+        <div><wifi-scanner :wifis="wifis" :scanning-wifis="scanningWifis" :known-ssids="knownSsids" @add-wifi="addWifi"/></div>
+      </div>
+
+      <style>
+        body {
+          font-family: Tahoma;
+        }
+
+        .reboot {
+          float: right;
+        }
+      </style>
+
+      <!--
+        Card
+      -->
+      <script type="text/x-template" id="card">
+        <div class="card">
+          <link rel="stylesheet" type="text/css" href="./card.css" />
+          <div class="title"><slot name="title">Title</slot></div>
+          <div class="content"><slot name="content">Content</slot></div>
+        </div>
+      </script>
+
+      <script type="text/javascript">
+        const Card = {
+          template: '#card',
+        };
+      </script>
+
+
+      <!--
+        Wifi entry
+      -->
+      <style>
+        .wifi-entry {
+          display: flex;
+          align-items: center;
+        }
+      </style>
+
+      <script type="text/x-template" id="wifi-entry">
+        <div class="wifi-entry">
+          <img :src="'signal-' + getSignalStrength(wifi.rssi) + '.png'" />
+          <strong>{{ wifi.ssid }}</strong>
+        </div>
+      </script>
+
+      <script type="text/javascript">
+        const WifiEntry = {
+          props: {
+            wifi: Object,
+          },
+
+          methods: {
+            getSignalStrength(rssi) {
+              if (!rssi) return 'x';
+              if (rssi > -56) return 3;
+              if (rssi > -67) return 2;
+              if (rssi > -89) return 1;
+              return 0;
+            },
+          },
+
+          template: '#wifi-entry',
+        };
+      </script>
+
+      <!--
+        Known SSID list
+      -->
+      <script type="text/x-template" id="known-ssid-list">
+        <link rel="stylesheet" type="text/css" href="./known-ssid-list.css" />
+        <card class="known-ssid-list">
+          <template v-slot:title>Known SSIDs <button @click="addManually">Add manually</button> <img v-if="loadingKnownSsids" src="./loading.gif" /></template>
+          <template v-slot:content>
+            <ul>
+              <li v-for="wifi in decoratedKnownSsids">
+                <button v-on:click="removeWifi" :ssid="wifi.ssid">Remove</button>
+                <wifi-entry :wifi="wifi" />
+              </li>
+            </ul>
+          </template>
+        </card>
+      </script>
+
+      <script type="text/javascript">
+        const KnownSsidList = {
+          props: {
+            knownSsids: Array,
+            loadingKnownSsids: Boolean,
+            wifis: Array,
+          },
+
+          computed: {
+            decoratedKnownSsids() {
+              return this.knownSsids.map(ssid => {
+                const scanInfo = this.wifis.find(x => x.ssid === ssid) || {};
+                return { ssid, ...scanInfo };
+              });
+            },
+          },
+
+          methods: {
+            removeWifi(evt) {
+              const ssid = evt.target.getAttribute('ssid');
+              this.$emit('remove-wifi', ssid);
+            },
+
+            addManually() {
+              const ssid = prompt('Enter the SSID');
+              const psk = prompt('Enter the wifi password');
+              this.$emit('add-wifi', ssid, psk);
+            },
+          },
+
+          template: '#known-ssid-list',
+        };
+      </script>
+
+
+
+      <!--
+        Wifi Scanner
+      -->
+      <script type="text/x-template" id="wifi-scanner">
+        <link rel="stylesheet" type="text/css" href="./wifi-scanner.css" />
+        <card class="wifi-scanner">
+          <template v-slot:title>Available wifis <img v-if="scanningWifis" src="./loading.gif" /></template>
+          <template v-slot:content>
+            <ul>
+              <li v-for="wifi in unknownWifis">
+                <button v-on:click="selectWifi" :ssid="wifi.ssid">Add</button>
+                <wifi-entry :wifi="wifi" />
+              </li>
+            </ul>
+          </template>
+        </card>
+      </script>
+
+      <script type="text/javascript">
+        const WifiScanner = {
+          props: {
+            knownSsids: Array,
+            wifis: Array,
+            scanningWifis: Boolean,
+          },
+
+          computed: {
+            unknownWifis() {
+              return this.wifis.filter(w => !this.knownSsids.includes(w.ssid));
+            },
+          },
+
+          methods: {
+            selectWifi(evt) {
+              const ssid = evt.target.getAttribute('ssid');
+              const psk = prompt(`Introduce the password for the wifi ${ssid}`);
+              this.$emit('add-wifi', ssid, psk);
+            },
+          },
+
+          template: '#wifi-scanner',
+        };
+      </script>
+    </div>
+    
+
+
+    <!--
+      App
+    -->
+    <script>
+      const app = Vue.createApp({
+        data: () => ({
+          knownSsids: [],
+          loadingKnownSsids: false,
+          wifis: [],
+          scanningWifis: false,
+        }),
+
+        methods: {
+          async reboot() {
+            try {
+              await axios.post('http://192.168.4.1/reboot');
+            }
+            finally {
+              window.location.href = '/';
+            }
+          },
+
+          async loadKnownSsids() {
+            try {
+              this.loadingKnownSsids = true;
+              const response = await axios.get('http://192.168.4.1/ssid');
+              this.knownSsids = response.data;
+            }
+            catch (err) {
+              console.error(err);
+              setTimeout(this.loadKnownSsids, 100);
+            }
+            finally {
+              this.loadingKnownSsids = false;
+            }
+          },
+
+          async scanWifis() {
+            if (this.scanningWifis) return;
+
+            try {
+              this.scanningWifis = true;
+              const networks = await axios.get('http://192.168.4.1/scan');
+              if (networks.data.length > 0) {
+                this.wifis = networks.data.sort((a, b) => a.rssi > b.rssi ? -1 : 1);
+              }
+            }
+            catch (err) {
+              console.error(err);
+            }
+            finally {
+              this.scanningWifis = false;
+            }
+
+            setTimeout(this.scanWifis, 2000);
+          },
+ 
+          async addWifi(ssid, psk) {
+            try {
+              const response = await axios.post('http://192.168.4.1/ssid', { ssid, psk });
+              if (response.status === 201) {
+                this.knownSsids = [...this.knownSsids, ssid];
+                this.loadKnownSsids();
+                this.scanWifis();
+              }
+            }
+            catch (err) {
+              console.error(err);
+            }
+          },
+
+          async removeWifi(ssid) {
+            try {
+              const response = await axios.delete('http://192.168.4.1/ssid', { data: { ssid } });
+              if (response.status === 200) {
+                this.knownSsids = this.knownSsids.filter(x => x !== ssid);
+                this.loadKnownSsids();
+              }
+            }
+            catch (err) {
+              console.error(err);
+            }
+          },
+       },
+
+        mounted() {
+          this.loadKnownSsids();
+          this.scanWifis();
+        },
+      })
+      .component('wifi-scanner', WifiScanner)
+      .component('known-ssid-list', KnownSsidList)
+      .component('wifi-entry', WifiEntry)
+      .component('card', Card)
+      .mount('#app');
+    </script>
+  </body>
+</html>
