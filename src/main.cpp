@@ -35,10 +35,10 @@ void setup() {
   String mdnsId = deviceType + "-" + deviceId;
   if (MDNS.begin(mdnsId)) { Serial.println(">:MDNS responder started"); }
 
-  WifiSetupOpts opts;
+  WifiSetup::WifiSetupOpts opts;
   opts.ssid = deviceType + "-" + deviceId;
 
-  WifiSetup* wifiSetup = new WifiSetup(opts);
+  auto* wifiSetup = new WifiSetup::Setup(opts);
   wifiSetup->start();
 }
 

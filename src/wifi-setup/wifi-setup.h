@@ -1,23 +1,27 @@
 #pragma once
 
-struct WifiSetupData;
+namespace WifiSetup {
 
-struct WifiSetupOpts {
-  int port = 80;
-  String ssid = "Sensor setup";
-  String psk = "12345678";
-  String dataPath = "/ssid.json";
-};
+  struct WifiSetupData;
 
-class WifiSetup {
-public:
-  WifiSetup(const WifiSetupOpts& opts = WifiSetupOpts());
-  ~WifiSetup();
+  struct WifiSetupOpts {
+    int port = 80;
+    String ssid = "Sensor setup";
+    String psk = "12345678";
+    String dataPath = "/ssid.json";
+  };
 
-  void start();
-  void stop();
+  class Setup {
+  public:
+    Setup(const WifiSetupOpts& opts = WifiSetupOpts());
+    ~Setup();
 
-private:
-  WifiSetupOpts opts;
-  void* impl;
-};
+    void start();
+    void stop();
+
+  private:
+    WifiSetupOpts opts;
+    void* impl;
+  };
+
+}
