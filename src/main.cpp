@@ -39,7 +39,10 @@ void setup() {
   opts.ssid = deviceType + "-" + deviceId;
 
   auto* wifiSetup = new WifiSetup::Setup(opts);
-  wifiSetup->start();
+  if (!wifiSetup->tryConnect()) {
+    Serial.println(">:Cannot connect to any wifi. Starting in setup mode...");
+    wifiSetup->start();
+  }
 }
 
 void loop() {

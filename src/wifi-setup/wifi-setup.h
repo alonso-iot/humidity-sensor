@@ -16,6 +16,8 @@ namespace WifiSetup {
     Setup(const WifiSetupOpts& opts = WifiSetupOpts());
     ~Setup();
 
+    bool tryConnect();
+    
     void start();
     void stop();
 

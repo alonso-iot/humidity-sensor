@@ -10,6 +10,30 @@
 
 using namespace WifiSetup;
 
+static bool connectToSSID(const String& ssid, const String& psk) {
+  Serial.printf(">:Connecting to SSID '%s'...\n", ssid.c_str());
+  WiFi.begin(ssid, psk);
+
+  do {
+    delay(100);
+
+    switch (WiFi.status()) {
+      case WL_CONNECTED: {
+        Serial.println(">:Connected!");
+        return true;
+      }
+
+      case WL_DISCONNECTED: {
+        break;
+      }
+
+      default:
+        return false;
+    }
+  }
+  while (true);
+}
+
 class WifiSetupImpl {
 public:
   ~WifiSetupImpl() {
@@ -25,6 +49,17 @@ public:
 
   void stop() {
     webServer.stop();
+  }
+
+  bool tryConnect(const WifiSetupOpts& opts) {
+    dataManager.start(opts.dataPath);
+
+    for (const auto wifi : dataManager.getList()) {
+      if (connectToSSID(wifi.ssid, wifi.psk))
+        return true;
+    }
+
+    return false;
   }
 
 private:
@@ -55,4 +90,8 @@ void Setup::start() {
 
 void Setup::stop() {
   static_cast<WifiSetupImpl*>(impl)->stop();
+}
+
+bool Setup::tryConnect() {
+  return static_cast<WifiSetupImpl*>(impl)->tryConnect(opts);
 }
