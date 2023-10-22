@@ -1,9 +1,4 @@
-#include <AsyncJson.h>
-#include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
-#include <list>
-#include <functional>
-#include <LittleFS.h>
 #include "webserver.h"
 #include "wifi-data-manager.h"
 #include "wifi-setup.h"
