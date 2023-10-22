@@ -17,6 +17,8 @@
     <div class="container body-content">
       <div id="app">
         <button class="reboot" v-on:click="reboot">Reboot system</button>
+        <div><hostname-manager :loading-hostname="loadingHostname" :hostname="hostname" @change-hostname="changeHostname" /></div>
+        <br />
         <div><known-ssid-list :known-ssids="knownSsids" :loading-known-ssids="loadingKnownSsids" :wifis="wifis" @add-wifi="addWifi" @remove-wifi="removeWifi" /></div>
         <br />
         <div><wifi-scanner :wifis="wifis" :scanning-wifis="scanningWifis" :known-ssids="knownSsids" @add-wifi="addWifi"/></div>
@@ -28,6 +30,12 @@
         }
 
         .reboot {
+          float: right;
+        }
+
+        .title-loading {
+          width: 16px;
+          height: 16px;
           float: right;
         }
       </style>
@@ -46,6 +54,50 @@
       <script type="text/javascript">
         const Card = {
           template: '#card',
+        };
+      </script>
+
+
+      <!--
+        Hostname manager
+      -->
+      <script type="text/x-template" id="hostname-manager">
+        <card class="hostname-manager">
+          <template v-slot:title>Hostname</template>
+          <template v-slot:content>
+            <img v-if="loadingHostname" src="./loading.gif" />
+            <div v-else>
+              <input type="text" id="hostname" v-model="hostnameInput" />
+              <button @click="changeHostname">Update</button>
+            </div>
+          </template>
+        </card>
+      </script>
+
+      <script type="text/javascript">
+        const HostnameManager = {
+          props: {
+            hostname: String,
+            loadingHostname: Boolean,
+          },
+
+          data() {
+            return { hostnameInput: this.hostname };
+          },
+
+          watch: {
+            hostname() {
+              this.hostnameInput = this.hostname;
+            },
+          },
+
+          methods: {
+            changeHostname() {
+              this.$emit('change-hostname', this.hostnameInput);
+            },
+          },
+
+          template: '#hostname-manager',
         };
       </script>
 
@@ -93,7 +145,7 @@
       <script type="text/x-template" id="known-ssid-list">
         <link rel="stylesheet" type="text/css" href="./known-ssid-list.css" />
         <card class="known-ssid-list">
-          <template v-slot:title>Known SSIDs <button @click="addManually">Add manually</button> <img v-if="loadingKnownSsids" src="./loading.gif" /></template>
+          <template v-slot:title>Known SSIDs <button @click="addManually">Add manually</button> <img v-if="loadingKnownSsids" class="title-loading" src="./loading.gif" /></template>
           <template v-slot:content>
             <ul>
               <li v-for="wifi in decoratedKnownSsids">
@@ -147,7 +199,7 @@
       <script type="text/x-template" id="wifi-scanner">
         <link rel="stylesheet" type="text/css" href="./wifi-scanner.css" />
         <card class="wifi-scanner">
-          <template v-slot:title>Available wifis <img v-if="scanningWifis" src="./loading.gif" /></template>
+          <template v-slot:title>Available wifis <img v-if="scanningWifis" class="title-loading" src="./loading.gif" /></template>
           <template v-slot:content>
             <ul>
               <li v-for="wifi in unknownWifis">
@@ -198,6 +250,8 @@
           loadingKnownSsids: false,
           wifis: [],
           scanningWifis: false,
+          hostname: '',
+          loadingHostname: false,
         }),
 
         methods: {
@@ -207,6 +261,23 @@
             }
             finally {
               window.location.href = '/';
+            }
+          },
+
+          async loadHostname() {
+            if (this.loadingHostname) return;
+
+            try {
+              this.loadingHostname = true;
+              const response = await axios.get('http://192.168.4.1/hostname');
+              this.hostname = response.data.hostname;
+            }
+            catch (err) {
+              console.error(err);
+              setTimeout(this.loadHostname, 100);
+            }
+            finally {
+              this.loadingHostname = false;
             }
           },
 
@@ -278,15 +349,33 @@
               console.error(err);
             }
           },
+
+          async changeHostname(hostname) {
+            if (hostname) {
+              try {
+                this.loadingHostname = true;
+                await axios.post('http://192.168.4.1/hostname', { hostname });
+              }
+              catch (err) {
+                console.error(err);
+              }
+              finally {
+                this.loadingHostname = false;
+              }
+            }
+            this.loadHostname();
+          },
        },
 
         mounted() {
+          this.loadHostname();
           this.loadKnownSsids();
           this.scanWifis();
         },
       })
       .component('wifi-scanner', WifiScanner)
       .component('known-ssid-list', KnownSsidList)
+      .component('hostname-manager', HostnameManager)
       .component('wifi-entry', WifiEntry)
       .component('card', Card)
       .mount('#app');

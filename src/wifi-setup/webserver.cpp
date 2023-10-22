@@ -4,7 +4,27 @@
 
 using namespace WifiSetup;
 
-static void handleAdd(AsyncWebServerRequest *req, const JsonVariant &json, WifiDataManager* dataManager) {
+static void handleGetHostname(AsyncWebServerRequest *req, DataManager* dataManager) {
+  String json = "{\"hostname\":\"";
+  json += dataManager->getHostname();
+  json += "\"}";
+
+  auto res = req->beginResponse(200, "application/json", json);
+  res->addHeader("Access-Control-Allow-Origin", "*");
+  req->send(res);
+}
+
+static void handleSetHostname(AsyncWebServerRequest *req, const JsonVariant &json, DataManager* dataManager) {
+  const JsonObject& jsonObj = json.as<JsonObject>();
+  const String hostname = jsonObj["hostname"].as<String>();
+  dataManager->setHostname(hostname);
+
+  auto res = req->beginResponse(201);
+  res->addHeader("Access-Control-Allow-Origin", "*");
+  req->send(res);
+}
+
+static void handleAdd(AsyncWebServerRequest *req, const JsonVariant &json, DataManager* dataManager) {
   const JsonObject& jsonObj = json.as<JsonObject>();
   const String ssid = jsonObj["ssid"].as<String>();
   const String psk = jsonObj["psk"].as<String>();
@@ -15,7 +35,7 @@ static void handleAdd(AsyncWebServerRequest *req, const JsonVariant &json, WifiD
   req->send(res);
 }
 
-static void handleDelete(AsyncWebServerRequest *req, const JsonVariant &json, WifiDataManager* dataManager) {
+static void handleDelete(AsyncWebServerRequest *req, const JsonVariant &json, DataManager* dataManager) {
   const JsonObject& jsonObj = json.as<JsonObject>();
   const String ssid = jsonObj["ssid"].as<String>();
   dataManager->removeWifi(ssid);
@@ -25,7 +45,7 @@ static void handleDelete(AsyncWebServerRequest *req, const JsonVariant &json, Wi
   req->send(res);
 }
 
-static void handleList(AsyncWebServerRequest* req, WifiDataManager* dataManager) {
+static void handleList(AsyncWebServerRequest* req, DataManager* dataManager) {
   String json = "[";
   bool comma = false;
   for (const auto wifi : dataManager->getList()) {
@@ -75,7 +95,7 @@ static void handleScan(AsyncWebServerRequest* req) {
   req->send(res);
 }
 
-static void setupRoutes(AsyncWebServer* server, WifiDataManager* dataManager) {
+static void setupRoutes(AsyncWebServer* server, DataManager* dataManager) {
   server->on("/", HTTP_GET, [](auto* req) { req->redirect("/setup"); });
   server->on("/reboot", HTTP_POST, [](auto* req) { req->send(200); ESP.reset(); });
 
@@ -99,6 +119,11 @@ static void setupRoutes(AsyncWebServer* server, WifiDataManager* dataManager) {
 
   server->on("/scan", HTTP_GET, handleScan);
   server->on("/ssid", HTTP_GET, std::bind(handleList, std::placeholders::_1, dataManager));
+  server->on("/hostname", HTTP_GET, std::bind(handleGetHostname, std::placeholders::_1, dataManager));
+
+  auto setHostnameHandler = new AsyncCallbackJsonWebHandler("/hostname", std::bind(handleSetHostname, std::placeholders::_1, std::placeholders::_2, dataManager));
+  setHostnameHandler->setMethod(HTTP_POST);
+  server->addHandler(setHostnameHandler);
   
   auto addHandler = new AsyncCallbackJsonWebHandler("/ssid", std::bind(handleAdd, std::placeholders::_1, std::placeholders::_2, dataManager));
   addHandler->setMethod(HTTP_POST);
@@ -119,7 +144,7 @@ static void setupRoutes(AsyncWebServer* server, WifiDataManager* dataManager) {
   });
 }
 
-void WebServer::start(int port, WifiDataManager* dataManager) {
+void WebServer::start(int port, DataManager* dataManager) {
   server = new AsyncWebServer(port);
   setupRoutes(server, dataManager);
   server->begin();

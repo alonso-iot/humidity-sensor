@@ -1,10 +1,10 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-#include "wifi-data-manager.h"
+#include "data-manager.h"
 
 using namespace WifiSetup;
 
-static void loadWifiData(const String& dataPath, WifiList* v) {
+static void loadData(const String& dataPath, WifiList* v, String* hostname) {
   auto file = LittleFS.open(dataPath, "r");
   if (file) {
     StaticJsonDocument<1024> doc;
@@ -15,12 +15,14 @@ static void loadWifiData(const String& dataPath, WifiList* v) {
     for (const auto wifi : doc["ssids"].as<JsonArray>()) {
       v->push_back({ wifi["ssid"], wifi["psk"] });
     }
+
+    *hostname = doc["hostname"].as<String>();
   }
 
-  Serial.printf(">:Loading %d SSIDs from %s...\n", v->size(), dataPath.c_str());
+  Serial.printf(">:Loading data from %s...\n", dataPath.c_str());
 }
 
-static void saveWifiData(const String& dataPath, const WifiList& v) {
+static void saveData(const String& dataPath, const WifiList& v, const String& hostname) {
   auto file = LittleFS.open(dataPath, "w");
   StaticJsonDocument<1024> doc;
   JsonArray array = doc.createNestedArray("ssids");
@@ -31,24 +33,31 @@ static void saveWifiData(const String& dataPath, const WifiList& v) {
     obj["psk"] = wifi.psk;
   }
 
+  doc["hostname"] = hostname;
+
   serializeJson(doc, file);
   file.close();
 
-  Serial.printf(">:Saving %d SSIDs to %s...\n", v.size(), dataPath.c_str());
+  Serial.printf(">:Saving data to %s...\n", dataPath.c_str());
 }
 
-void WifiDataManager::start(const String& dataPath) {
+void DataManager::start(const String& dataPath) {
   this->dataPath = dataPath;
-  loadWifiData(dataPath, &list);
+  loadData(dataPath, &list, &hostname);
 }
 
-void WifiDataManager::addWifi(const String& ssid, const String& psk) {
+void DataManager::addWifi(const String& ssid, const String& psk) {
   list.remove_if([&ssid](auto wifi) { return wifi.ssid == ssid; });
   list.push_back({ ssid, psk });
-  saveWifiData(dataPath, list);
+  saveData(dataPath, list, hostname);
 }
 
-void WifiDataManager::removeWifi(const String& ssid) {
+void DataManager::removeWifi(const String& ssid) {
   list.remove_if([&ssid](auto wifi) { return wifi.ssid == ssid; });
-  saveWifiData(dataPath, list);
+  saveData(dataPath, list, hostname);
+}
+
+void DataManager::setHostname(const String& hostname) {
+  this->hostname = hostname;
+  saveData(dataPath, list, hostname);
 }

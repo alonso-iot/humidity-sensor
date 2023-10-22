@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <ESP8266mDNS.h>
-#include <ESP8266WiFi.h>
 #include <LittleFS.h>
 #include <numeric>
 #include <vector>
@@ -21,18 +20,15 @@ static String getDeviceId() {
   return deviceId;
 }
 
+static WifiSetup::Setup wifiSetup;
+
 void setup() {
+  Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
 
   String deviceType = "humidity-sensor";
   String deviceId = getDeviceId();
-
-  Serial.begin(115200);
-  Serial.println("\n---------------------------------------");
-  Serial.println("IoT sensor");
-  Serial.printf("Device id: %s\n", deviceId.c_str());
-  Serial.println("---------------------------------------");
 
   Serial.println(">:Initializing LittleFS...");
   if (!LittleFS.begin()) {
@@ -41,28 +37,41 @@ void setup() {
     return;
   }
 
-  String mdnsId = deviceType + "-" + deviceId;
-  if (MDNS.begin(mdnsId)) { Serial.println(">:MDNS responder started"); }
+  wifiSetup.start();
+
+  String hostname = wifiSetup.getHostname();
+  if (hostname.isEmpty()) {
+    hostname = deviceType + "-" + deviceId;
+    wifiSetup.setHostname(hostname);
+    Serial.printf(">:Hostname not found. Defaulting to '%s'.\n", hostname.c_str());
+  }
+
+  Serial.println("\n---------------------------------------");
+  Serial.println("IoT sensor");
+  Serial.printf("Device id: %s\n", deviceId.c_str());
+  Serial.printf("Hostname: %s\n", hostname.c_str());
+  Serial.println("---------------------------------------");
 
   WifiSetup::WifiSetupOpts opts;
-  opts.ssid = deviceType + "-" + deviceId;
+  opts.ssid = hostname;
+
+  if (MDNS.begin(hostname)) { Serial.println(">:MDNS responder started"); }
 
   EEPROM.begin(sizeof(bool));
   bool shouldStartInSetupMode;
   EEPROM.get(0, shouldStartInSetupMode);
 
-  auto* wifiSetup = new WifiSetup::Setup(opts);
   if (shouldStartInSetupMode) {
     EEPROM.put(0, false);
     EEPROM.commit();
     Serial.println(">:Forcing to start in setup mode...");
-    wifiSetup->start();
+    wifiSetup.launchConfiguration(opts);
     blinkLedForConfiguration();
   }
   else {
-    if (!wifiSetup->tryConnect()) {
+    if (!wifiSetup.tryConnect()) {
       Serial.println(">:Cannot connect to any wifi. Starting in setup mode...");
-      wifiSetup->start();
+      wifiSetup.launchConfiguration(opts);
       blinkLedForConfiguration();
     }
     else {

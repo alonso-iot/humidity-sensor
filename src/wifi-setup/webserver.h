@@ -1,13 +1,13 @@
 #pragma once
 
 #include <ESPAsyncWebServer.h>
-#include "wifi-data-manager.h"
+#include "data-manager.h"
 
 namespace WifiSetup {
 
   class WebServer {
   public:
-    void start(int port, WifiDataManager* dataManager);
+    void start(int port, DataManager* dataManager);
     void stop();
 
   private:

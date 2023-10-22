@@ -8,21 +8,23 @@ namespace WifiSetup {
     int port = 80;
     String ssid = "Sensor setup";
     String psk = "12345678";
-    String dataPath = "/ssid.json";
   };
 
   class Setup {
   public:
-    Setup(const WifiSetupOpts& opts = WifiSetupOpts());
+    Setup();
     ~Setup();
 
     bool tryConnect();
+    void launchConfiguration(const WifiSetupOpts& opts);
+
+    const String& getHostname() const;
+    void setHostname(const String& hostname);
     
-    void start();
+    void start(const String& dataPath = "/config.json");
     void stop();
 
   private:
-    WifiSetupOpts opts;
     void* impl;
   };
 

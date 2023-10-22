@@ -1,11 +1,13 @@
 #include <ESP8266WiFi.h>
 #include "webserver.h"
-#include "wifi-data-manager.h"
+#include "data-manager.h"
 #include "wifi-setup.h"
 
 using namespace WifiSetup;
 
-static bool connectToSSID(const String& ssid, const String& psk) {
+static bool connectToSSID(const String& hostname, const String& ssid, const String& psk) {
+  WiFi.hostname(hostname.c_str());
+
   Serial.printf(">:Connecting to SSID '%s'...\n", ssid.c_str());
   WiFi.begin(ssid, psk);
 
@@ -35,10 +37,12 @@ public:
     stop();
   }
 
-  void start(const WifiSetupOpts& opts) {
-    createAP(opts.ssid, opts.psk);
+  void start(const String& dataPath) {
+    dataManager.start(dataPath);
+  }
 
-    dataManager.start(opts.dataPath);
+  void launchConfiguration(const WifiSetupOpts& opts) {
+    createAP(opts.ssid, opts.psk);
     webServer.start(opts.port, &dataManager);
   }
 
@@ -46,15 +50,24 @@ public:
     webServer.stop();
   }
 
-  bool tryConnect(const WifiSetupOpts& opts) {
-    dataManager.start(opts.dataPath);
-
+  bool tryConnect() {
+    WiFi.mode(WIFI_STA);
+    const String& hostname = dataManager.getHostname();
     for (const auto wifi : dataManager.getList()) {
-      if (connectToSSID(wifi.ssid, wifi.psk))
+      if (connectToSSID(hostname, wifi.ssid, wifi.psk)) {
         return true;
+      }
     }
 
     return false;
+  }
+
+  const String& getHostname() const {
+    return dataManager.getHostname();
+  }
+
+  void setHostname(const String& hostname) {
+    return dataManager.setHostname(hostname);
   }
 
 private:
@@ -66,12 +79,12 @@ private:
   }
 
 private:
-  WifiDataManager dataManager;
+  DataManager dataManager;
   WebServer webServer;
 };
 
 
-Setup::Setup(const WifiSetupOpts& opts) : opts(opts) {
+Setup::Setup() {
   impl = new WifiSetupImpl();
 }
 
@@ -79,14 +92,26 @@ Setup::~Setup() {
   delete static_cast<WifiSetupImpl*>(impl);
 }
 
-void Setup::start() {
-  static_cast<WifiSetupImpl*>(impl)->start(opts);
+void Setup::launchConfiguration(const WifiSetupOpts& opts) {
+  return static_cast<WifiSetupImpl*>(impl)->launchConfiguration(opts);
+}
+
+void Setup::start(const String& dataPath) {
+  return static_cast<WifiSetupImpl*>(impl)->start(dataPath);
 }
 
 void Setup::stop() {
-  static_cast<WifiSetupImpl*>(impl)->stop();
+  return static_cast<WifiSetupImpl*>(impl)->stop();
 }
 
 bool Setup::tryConnect() {
-  return static_cast<WifiSetupImpl*>(impl)->tryConnect(opts);
+  return static_cast<WifiSetupImpl*>(impl)->tryConnect();
+}
+
+const String& Setup::getHostname() const {
+  return static_cast<WifiSetupImpl*>(impl)->getHostname();
+}
+
+void Setup::setHostname(const String& hostname) {
+  return static_cast<WifiSetupImpl*>(impl)->setHostname(hostname);
 }
