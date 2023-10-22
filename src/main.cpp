@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <EEPROM.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
 #include <LittleFS.h>
@@ -38,13 +39,36 @@ void setup() {
   WifiSetup::WifiSetupOpts opts;
   opts.ssid = deviceType + "-" + deviceId;
 
+  EEPROM.begin(sizeof(bool));
+  bool shouldStartInSetupMode;
+  EEPROM.get(0, shouldStartInSetupMode);
+
   auto* wifiSetup = new WifiSetup::Setup(opts);
-  if (!wifiSetup->tryConnect()) {
-    Serial.println(">:Cannot connect to any wifi. Starting in setup mode...");
+  if (shouldStartInSetupMode) {
+    EEPROM.put(0, false);
+    EEPROM.commit();
+    Serial.println(">:Forcing to start in setup mode...");
     wifiSetup->start();
+  }
+  else {
+    if (!wifiSetup->tryConnect()) {
+      Serial.println(">:Cannot connect to any wifi. Starting in setup mode...");
+      wifiSetup->start();
+    }
+    else {
+      pinMode(0, INPUT_PULLUP);
+    }
   }
 }
 
 void loop() {
   MDNS.update();
+  
+  if (!digitalRead(0)) {
+    Serial.println(">:Flash button pressed, restarting in configuration mode...");
+    EEPROM.put(0, true);
+    EEPROM.commit();
+    EEPROM.end();
+    ESP.reset();
+  }
 }
