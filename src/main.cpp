@@ -3,7 +3,12 @@
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
 #include <LittleFS.h>
+#include <numeric>
+#include <vector>
 #include "wifi-setup/wifi-setup.h"
+
+std::vector<unsigned long> flashPattern = { 0 };
+static auto blinkLedForConfiguration = []() { flashPattern = { 100, 900 }; };
 
 static String getDeviceId() {
   char deviceId[8];
@@ -17,6 +22,9 @@ static String getDeviceId() {
 }
 
 void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+
   String deviceType = "humidity-sensor";
   String deviceId = getDeviceId();
 
@@ -49,11 +57,13 @@ void setup() {
     EEPROM.commit();
     Serial.println(">:Forcing to start in setup mode...");
     wifiSetup->start();
+    blinkLedForConfiguration();
   }
   else {
     if (!wifiSetup->tryConnect()) {
       Serial.println(">:Cannot connect to any wifi. Starting in setup mode...");
       wifiSetup->start();
+      blinkLedForConfiguration();
     }
     else {
       pinMode(0, INPUT_PULLUP);
@@ -70,5 +80,24 @@ void loop() {
     EEPROM.commit();
     EEPROM.end();
     ESP.reset();
+  }
+
+  auto totalFlashDuration = std::reduce(flashPattern.begin(), flashPattern.end());
+  if (!totalFlashDuration) {
+    digitalWrite(LED_BUILTIN, HIGH);
+  }
+  else {
+    auto elapsed = millis() % totalFlashDuration;
+    auto i = 0;
+    auto n = 0UL;
+
+    for (auto step : flashPattern) {
+      n += step;
+      if (elapsed <= n) {
+        digitalWrite(LED_BUILTIN, (i & 1) ? HIGH : LOW);
+        break;
+      }
+      ++i;
+    }
   }
 }
