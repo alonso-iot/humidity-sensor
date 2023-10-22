@@ -246,6 +246,10 @@
           },
  
           async addWifi(ssid, psk) {
+            if (!ssid || psk === null) return;
+            ssid = ssid.trim();
+            psk = psk.trim();
+
             try {
               const response = await axios.post('http://192.168.4.1/ssid', { ssid, psk });
               if (response.status === 201) {
@@ -260,6 +264,9 @@
           },
 
           async removeWifi(ssid) {
+            if (!ssid) return;
+            ssid = ssid.trim();
+
             try {
               const response = await axios.delete('http://192.168.4.1/ssid', { data: { ssid } });
               if (response.status === 200) {
